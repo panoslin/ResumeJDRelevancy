@@ -324,6 +324,9 @@ if __name__ == "__main__":
         'mixedbread-ai/mxbai-embed-large-v1'
     ]:
         try:
+            print('\n\n')
+            print('*'*100)
+            print(f"Train with base model {base_model_name}")
             start_time = time.time()
             main(
                 model_id=time.strftime("%Y_%m_%d_%H_%M"),
@@ -338,3 +341,13 @@ if __name__ == "__main__":
             print(f"Total time: {end_time - start_time} seconds")
         except Exception as e:
             print(f"Error with model {base_model_name}: {e}")
+
+    # main(
+    #     model_id='2024_11_11_00_42',
+    #     base_model_name='BAAI/bge-small-en-v1.5',
+    #     batch_size=16,
+    #     learning_rate=1e-5,
+    #     num_epochs=20,
+    #     evaluate_only=True,
+    #     checkpointed=False
+    # )

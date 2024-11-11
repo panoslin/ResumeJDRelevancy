@@ -8,21 +8,21 @@ from model_trainer import (
 )
 
 
-def load_trained_model(model_path, device):
+def load_trained_model(model_path, device, base_model_name='sentence-transformers/all-MiniLM-L6-v2'):
     """Loads the trained model from the specified path."""
     # Build the model architecture
-    model = build_model(device)
+    model = build_model(device, base_model_name)
     # Load the saved state dict
     model.load_state_dict(torch.load(model_path, map_location=device, weights_only=False))
     model.eval()  # Set the model to evaluation mode
     return model
 
 
-def predict(resume_text, job_description_text, model_path, device):
+def predict(resume_text, job_description_text, model_path, device, base_model_name):
     """Predicts the compatibility between a resume and a job description."""
     # Preprocess the texts
     resume_text, job_description_text = preprocess_text(resume_text), preprocess_text(job_description_text)
-    model = load_trained_model(model_path, device)
+    model = load_trained_model(model_path, device, base_model_name)
     # Move model to device
     model.to(device)
 
@@ -56,12 +56,17 @@ def predict(resume_text, job_description_text, model_path, device):
     return predicted_class, confidence
 
 
-def main(job_description_text, model_path='models/best_model.pt', resume_pdf_path='dataset/resume.pdf'):
+def main(
+        job_description_text,
+        model_path='models/best_model.pt',
+        resume_pdf_path='dataset/resume.pdf',
+        base_model_name='sentence-transformers/all-MiniLM-L6-v2',
+):
     device = get_device()
     resume_text = extract_text_from_pdf(resume_pdf_path)
 
     # Predict compatibility
-    predicted_class, confidence = predict(resume_text, job_description_text, model_path, device)
+    predicted_class, confidence = predict(resume_text, job_description_text, model_path, device, base_model_name)
 
     # Interpret the prediction
     if predicted_class == 1:
@@ -76,6 +81,7 @@ if __name__ == "__main__":
 
     main(
         job_description_text=evaluate_jd,
-        model_path="models/best_model_2024_11_10_07.pt",
+        model_path="models/best_model_2024_11_11_00_42.pt",
         resume_pdf_path="dataset/resume.pdf",
+        base_model_name="BAAI/bge-small-en-v1.5",
     )
