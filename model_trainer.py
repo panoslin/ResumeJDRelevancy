@@ -18,6 +18,7 @@ from sklearn.metrics import (
     matthews_corrcoef,
 )
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 
 def extract_text_from_pdf(file_path):
@@ -186,6 +187,11 @@ def evaluate(model, dataloader, device):
 
 
 def main(model_name='models/best_model.pt', evaluate_only=False):
+    os.makedirs('models', exist_ok=True)
+
+    # Initialize TensorBoard writer
+    writer = SummaryWriter('runs/experiment_{}'.format(time.strftime("%Y%m%d-%H%M%S")))
+
     # Load and preprocess data
     df = load_and_preprocess_data('dataset/job_descriptions.csv', 'dataset/resume.pdf')
     dataset_splits = create_dataset_splits(df)
@@ -198,16 +204,29 @@ def main(model_name='models/best_model.pt', evaluate_only=False):
     model = build_model(device)
 
     # Prepare data loaders
-    train_dataloader, validation_dataloader, test_dataloader = get_dataloaders(dataset_splits)
+    batch_size = 16
+    train_dataloader, validation_dataloader, test_dataloader = get_dataloaders(dataset_splits, batch_size=batch_size)
 
     if not evaluate_only:
         # Define loss and optimizer
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
+        lr = 2e-5
+        optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 
         num_epochs = 10
         best_validation_recall = 0
         start_epoch = 0
+
+        # Log hyperparameters
+        hyperparameters = {
+            'learning_rate': lr,
+            'num_epochs':    num_epochs,
+            'batch_size':    batch_size,
+            'optimizer':     optimizer.__class__.__name__,
+            'loss_function': criterion.__class__.__name__,
+            'model_name':    model_name
+        }
+        writer.add_text('Hyperparameters', str(hyperparameters))
 
         # Check for existing checkpoint
         checkpoint_path = 'models/checkpoint.pt'
@@ -230,6 +249,13 @@ def main(model_name='models/best_model.pt', evaluate_only=False):
             print(f"Validation Accuracy: {val_accuracy:.4f}, Validation F1 Score: {val_f1:.4f}, "
                   f"Validation Recall: {val_recall:.4f}, Validation MCC: {val_mcc:.4f}")
 
+            # Log metrics to TensorBoard
+            writer.add_scalar('Loss/Train', train_loss, epoch)
+            writer.add_scalar('Accuracy/Validation', val_accuracy, epoch)
+            writer.add_scalar('F1_Score/Validation', val_f1, epoch)
+            writer.add_scalar('Recall/Validation', val_recall, epoch)
+            writer.add_scalar('MCC/Validation', val_mcc, epoch)
+
             # Save the model if it has the best recall rate so far
             if val_recall > best_validation_recall:
                 best_validation_recall = val_recall
@@ -245,6 +271,8 @@ def main(model_name='models/best_model.pt', evaluate_only=False):
             }
             torch.save(checkpoint, checkpoint_path)
 
+        writer.close()  # Close the writer after training
+
     # Load the best model
     model.load_state_dict(torch.load(model_name, map_location=device, weights_only=False))
 
@@ -253,9 +281,16 @@ def main(model_name='models/best_model.pt', evaluate_only=False):
     print(f"Test Accuracy: {test_accuracy:.4f}, Test F1 Score: {test_f1:.4f}, "
           f"Test Recall: {test_recall:.4f}, Test MCC: {test_mcc:.4f}")
 
+    # Log test metrics to TensorBoard
+    writer.add_scalar('Accuracy/Test', test_accuracy)
+    writer.add_scalar('F1_Score/Test', test_f1)
+    writer.add_scalar('Recall/Test', test_recall)
+    writer.add_scalar('MCC/Test', test_mcc)
+    writer.close()
+
 
 if __name__ == "__main__":
     start_time = time.time()
-    main(model_name='models/best_model_2024_11_10_07.pt', evaluate_only=False)
+    main(model_name='models/best_model_2024_11_10_07.pt', evaluate_only=True)
     end_time = time.time()
     print(f"Total time: {end_time - start_time} seconds")
