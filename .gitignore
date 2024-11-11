@@ -5,3 +5,5 @@ job_descriptions/
 models/
 clean_jd.py
 cal_avg_word_count.py
+*.ipynb
+__pycache__/
