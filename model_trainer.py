@@ -2,6 +2,7 @@ import os
 import re
 import time
 
+import mlflow
 import pandas as pd
 import pdfplumber
 import torch
@@ -18,7 +19,6 @@ from sklearn.metrics import (
     matthews_corrcoef,
 )
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
 
 def extract_text_from_pdf(file_path):
@@ -197,111 +197,117 @@ def main(
 ):
     os.makedirs('models', exist_ok=True)
     model_name = f'models/best_model_{model_id}.pt'
-    # Initialize TensorBoard writer
-    writer = SummaryWriter(f'runs/experiment_{model_id}')
 
-    # Load and preprocess data
-    df = load_and_preprocess_data('dataset/job_descriptions.csv', 'dataset/resume.pdf')
-    dataset_splits = create_dataset_splits(df)
-    print(f"Train size: {len(dataset_splits['train'])}")
-    print(f"Validation size: {len(dataset_splits['validation'])}")
-    print(f"Test size: {len(dataset_splits['test'])}")
+    # Initialize MLflow
+    mlflow.set_experiment('ResumeJobMatching')
+    with mlflow.start_run(run_name=f'Experiment_{model_id}'):
 
-    # Setup device and model
-    device = get_device()
-    model = build_model(device, model_name=base_model_name)
+        # Load and preprocess data
+        df = load_and_preprocess_data('dataset/job_descriptions.csv', 'dataset/resume.pdf')
+        dataset_splits = create_dataset_splits(df)
+        print(f"Train size: {len(dataset_splits['train'])}")
+        print(f"Validation size: {len(dataset_splits['validation'])}")
+        print(f"Test size: {len(dataset_splits['test'])}")
 
-    # Log the base model architecture
-    writer.add_text('Model/Base_Architecture', str(model.base_model))
+        # Setup device and model
+        device = get_device()
+        model = build_model(device, model_name=base_model_name)
 
-    # Log the full model architecture
-    writer.add_text('Model/Full_Architecture', str(model))
+        # Prepare data loaders
+        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders(
+            dataset_splits,
+            batch_size=batch_size
+        )
 
-    # Prepare data loaders
-    train_dataloader, validation_dataloader, test_dataloader = get_dataloaders(
-        dataset_splits,
-        batch_size=batch_size
-    )
+        if not evaluate_only:
+            # Define loss and optimizer
+            criterion = nn.CrossEntropyLoss()
+            optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
-    if not evaluate_only:
-        # Define loss and optimizer
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+            best_validation_recall = 0
+            start_epoch = 0
 
-        best_validation_recall = 0
-        start_epoch = 0
-
-        # Log hyperparameters
-        hyperparameters = {
-            'learning_rate': learning_rate,
-            'num_epochs':    num_epochs,
-            'batch_size':    batch_size,
-            'optimizer':     optimizer.__class__.__name__,
-            'loss_function': criterion.__class__.__name__,
-            'model_name':    model_name,
-            'base_model':    base_model_name
-        }
-        writer.add_text('Hyperparameters', str(hyperparameters))
-
-        # Check for existing checkpoint
-        checkpoint_path = 'models/checkpoint.pt'
-        if checkpointed and os.path.exists(checkpoint_path):
-            checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-            model.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            start_epoch = checkpoint['epoch'] + 1
-            best_validation_recall = checkpoint['best_validation_recall']
-            print(f"Resuming training from epoch {start_epoch}")
-        else:
-            print("Starting training from scratch")
-
-        # Training loop
-        for epoch in range(start_epoch, num_epochs):
-            print(f"Epoch {epoch + 1}/{num_epochs}")
-            train_loss = train(model, train_dataloader, optimizer, criterion, device)
-            val_accuracy, val_f1, val_recall, val_mcc = evaluate(model, validation_dataloader, device)
-            print(f"Train Loss: {train_loss:.4f}")
-            print(f"Validation Accuracy: {val_accuracy:.4f}, Validation F1 Score: {val_f1:.4f}, "
-                  f"Validation Recall: {val_recall:.4f}, Validation MCC: {val_mcc:.4f}")
-
-            # Log metrics to TensorBoard
-            writer.add_scalar('Loss/Train', train_loss, epoch)
-            writer.add_scalar('Accuracy/Validation', val_accuracy, epoch)
-            writer.add_scalar('F1_Score/Validation', val_f1, epoch)
-            writer.add_scalar('Recall/Validation', val_recall, epoch)
-            writer.add_scalar('MCC/Validation', val_mcc, epoch)
-
-            # Save the model if it has the best recall rate so far
-            if val_recall > best_validation_recall:
-                best_validation_recall = val_recall
-                torch.save(model.state_dict(), model_name)
-                print("Saved new best model with Validation Recall: {:.4f}".format(best_validation_recall))
-
-            # Save checkpoint after each epoch
-            checkpoint = {
-                'epoch':                  epoch,
-                'model_state_dict':       model.state_dict(),
-                'optimizer_state_dict':   optimizer.state_dict(),
-                'best_validation_recall': best_validation_recall
+            # Log hyperparameters
+            hyperparameters = {
+                'learning_rate': learning_rate,
+                'num_epochs':    num_epochs,
+                'batch_size':    batch_size,
+                'optimizer':     optimizer.__class__.__name__,
+                'loss_function': criterion.__class__.__name__,
+                'model_name':    model_name,
+                'base_model':    base_model_name
             }
-            torch.save(checkpoint, checkpoint_path)
+            mlflow.log_params(hyperparameters)
 
-        writer.close()  # Close the writer after training
+            # Optionally log model architecture as artifact
+            # Save model architecture to a file
+            model_arch_path = f'models/model_arch_{model_id}.txt'
+            with open(model_arch_path, 'w') as f:
+                f.write(str(model))
+            mlflow.log_artifact(model_arch_path)
 
-    # Load the best model
-    model.load_state_dict(torch.load(model_name, map_location=device, weights_only=False))
+            # Check for existing checkpoint
+            checkpoint_path = 'models/checkpoint.pt'
+            if checkpointed and os.path.exists(checkpoint_path):
+                checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+                model.load_state_dict(checkpoint['model_state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                start_epoch = checkpoint['epoch'] + 1
+                best_validation_recall = checkpoint['best_validation_recall']
+                print(f"Resuming training from epoch {start_epoch}")
+            else:
+                print("Starting training from scratch")
 
-    # Evaluate on test set
-    test_accuracy, test_f1, test_recall, test_mcc = evaluate(model, test_dataloader, device)
-    print(f"Test Accuracy: {test_accuracy:.4f}, Test F1 Score: {test_f1:.4f}, "
-          f"Test Recall: {test_recall:.4f}, Test MCC: {test_mcc:.4f}")
+            # Training loop
+            for epoch in range(start_epoch, num_epochs):
+                print(f"Epoch {epoch + 1}/{num_epochs}")
+                train_loss = train(model, train_dataloader, optimizer, criterion, device)
+                val_accuracy, val_f1, val_recall, val_mcc = evaluate(model, validation_dataloader, device)
+                print(f"Train Loss: {train_loss:.4f}")
+                print(f"Validation Accuracy: {val_accuracy:.4f}, Validation F1 Score: {val_f1:.4f}, "
+                      f"Validation Recall: {val_recall:.4f}, Validation MCC: {val_mcc:.4f}")
 
-    # Log test metrics to TensorBoard
-    writer.add_scalar('Accuracy/Test', test_accuracy)
-    writer.add_scalar('F1_Score/Test', test_f1)
-    writer.add_scalar('Recall/Test', test_recall)
-    writer.add_scalar('MCC/Test', test_mcc)
-    writer.close()
+                # Log metrics to MLflow
+                mlflow.log_metric('Train Loss', train_loss, step=epoch)
+                mlflow.log_metric('Validation Accuracy', val_accuracy, step=epoch)
+                mlflow.log_metric('Validation F1 Score', val_f1, step=epoch)
+                mlflow.log_metric('Validation Recall', val_recall, step=epoch)
+                mlflow.log_metric('Validation MCC', val_mcc, step=epoch)
+
+                # Save the model if it has the best recall rate so far
+                if val_recall > best_validation_recall:
+                    best_validation_recall = val_recall
+                    torch.save(model.state_dict(), model_name)
+                    print("Saved new best model with Validation Recall: {:.4f}".format(best_validation_recall))
+
+                # Save checkpoint after each epoch
+                checkpoint = {
+                    'epoch':                  epoch,
+                    'model_state_dict':       model.state_dict(),
+                    'optimizer_state_dict':   optimizer.state_dict(),
+                    'best_validation_recall': best_validation_recall
+                }
+                torch.save(checkpoint, checkpoint_path)
+
+        # Load the best model
+        model.load_state_dict(torch.load(model_name, map_location=device, weights_only=False))
+
+        # Evaluate on test set
+        test_accuracy, test_f1, test_recall, test_mcc = evaluate(model, test_dataloader, device)
+        print(f"Test Accuracy: {test_accuracy:.4f}, Test F1 Score: {test_f1:.4f}, "
+              f"Test Recall: {test_recall:.4f}, Test MCC: {test_mcc:.4f}")
+
+        # Log test metrics to MLflow
+        mlflow.log_metric('Test Accuracy', test_accuracy)
+        mlflow.log_metric('Test F1 Score', test_f1)
+        mlflow.log_metric('Test Recall', test_recall)
+        mlflow.log_metric('Test MCC', test_mcc)
+
+        # Optionally, log the trained model
+        mlflow.pytorch.log_model(model, artifact_path='model')
+
+        # End the MLflow run
+        mlflow.end_run()
 
 
 if __name__ == "__main__":
@@ -314,13 +320,13 @@ if __name__ == "__main__":
         'sentence-transformers/paraphrase-MiniLM-L6-v2',
         'sentence-transformers/all-distilroberta-v1',
         'sentence-transformers/multi-qa-MiniLM-L6-cos-v1',
-        'BAAI/bge-m3,'
+        'BAAI/bge-m3',
         'mixedbread-ai/mxbai-embed-large-v1'
     ]:
         try:
             start_time = time.time()
             main(
-                model_id=time.strftime("%Y_%m_%d_%H_%M_%S"),
+                model_id=time.strftime("%Y_%m_%d_%H_%M"),
                 base_model_name=base_model_name,
                 batch_size=16,
                 learning_rate=1e-5,
@@ -331,4 +337,4 @@ if __name__ == "__main__":
             end_time = time.time()
             print(f"Total time: {end_time - start_time} seconds")
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error with model {base_model_name}: {e}")
