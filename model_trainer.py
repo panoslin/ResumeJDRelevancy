@@ -186,9 +186,17 @@ def evaluate(model, dataloader, device):
     return accuracy, f1, recall, mcc
 
 
-def main(model_id, evaluate_only=False):
+def main(
+        model_id,
+        base_model_name='sentence-transformers/all-MiniLM-L6-v2',
+        batch_size=16,
+        learning_rate=2e-5,
+        num_epochs=10,
+        evaluate_only=False,
+        checkpointed=True
+):
     os.makedirs('models', exist_ok=True)
-    model_name = f'models/best_model_{model_id}'
+    model_name = f'models/best_model_{model_id}.pt'
     # Initialize TensorBoard writer
     writer = SummaryWriter(f'runs/experiment_{model_id}')
 
@@ -201,7 +209,6 @@ def main(model_id, evaluate_only=False):
 
     # Setup device and model
     device = get_device()
-    base_model_name = 'sentence-transformers/all-MiniLM-L6-v2'
     model = build_model(device, model_name=base_model_name)
 
     # Log the base model architecture
@@ -211,22 +218,22 @@ def main(model_id, evaluate_only=False):
     writer.add_text('Model/Full_Architecture', str(model))
 
     # Prepare data loaders
-    batch_size = 16
-    train_dataloader, validation_dataloader, test_dataloader = get_dataloaders(dataset_splits, batch_size=batch_size)
+    train_dataloader, validation_dataloader, test_dataloader = get_dataloaders(
+        dataset_splits,
+        batch_size=batch_size
+    )
 
     if not evaluate_only:
         # Define loss and optimizer
         criterion = nn.CrossEntropyLoss()
-        lr = 2e-5
-        optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
-        num_epochs = 10
         best_validation_recall = 0
         start_epoch = 0
 
         # Log hyperparameters
         hyperparameters = {
-            'learning_rate': lr,
+            'learning_rate': learning_rate,
             'num_epochs':    num_epochs,
             'batch_size':    batch_size,
             'optimizer':     optimizer.__class__.__name__,
@@ -238,7 +245,7 @@ def main(model_id, evaluate_only=False):
 
         # Check for existing checkpoint
         checkpoint_path = 'models/checkpoint.pt'
-        if os.path.exists(checkpoint_path):
+        if checkpointed and os.path.exists(checkpoint_path):
             checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
             model.load_state_dict(checkpoint['model_state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -298,7 +305,30 @@ def main(model_id, evaluate_only=False):
 
 
 if __name__ == "__main__":
-    start_time = time.time()
-    main(time.strftime("%Y_%m_%d_%H_%M_%S"), evaluate_only=True)
-    end_time = time.time()
-    print(f"Total time: {end_time - start_time} seconds")
+    for base_model_name in [
+        'sentence-transformers/all-mpnet-base-v2',
+        'sentence-transformers/all-MiniLM-L6-v2',
+        'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',
+        'BAAI/bge-small-en-v1.5',
+        'sentence-transformers/all-MiniLM-L12-v2',
+        'sentence-transformers/paraphrase-MiniLM-L6-v2',
+        'sentence-transformers/all-distilroberta-v1',
+        'sentence-transformers/multi-qa-MiniLM-L6-cos-v1',
+        'BAAI/bge-m3,'
+        'mixedbread-ai/mxbai-embed-large-v1'
+    ]:
+        try:
+            start_time = time.time()
+            main(
+                model_id=time.strftime("%Y_%m_%d_%H_%M_%S"),
+                base_model_name=base_model_name,
+                batch_size=16,
+                learning_rate=1e-5,
+                num_epochs=20,
+                evaluate_only=False,
+                checkpointed=False
+            )
+            end_time = time.time()
+            print(f"Total time: {end_time - start_time} seconds")
+        except Exception as e:
+            print(f"Error: {e}")
