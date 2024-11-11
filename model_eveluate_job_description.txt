@@ -1,0 +1,96 @@
+About the job
+About Us
+Stronghold Investment Management (“Stronghold,” “SIM,” or “the Firm”) is a technology-driven, vertically integrated investment manager focused on real-assets and related private markets. Stronghold seeks to deliver best-in-class risk-adjusted returns through an investment framework that features comparatively rapid transaction velocity, deep technical expertise, creative financial structuring, and objective and algorithmic decision making.
+
+
+Stronghold was founded by Ryan Turner in 2016 and has deployed over $1.6 billion in capital across 10+ investment vehicles.
+
+
+Ultimately, Stronghold intends to apply its technology-intensive investment approach to a variety of specialist real assets verticals, including:
+
+
+Oil & Gas
+Renewables
+Specialty Real Estate (commercial, datacenters, marinas)
+Telecommunications and Technology Infrastructure
+Billboards and Fixtures
+Mining & other commodities
+Utilities
+Secondaries
+We are looking for Software Engineers who enjoy solving problems on the backend. In this role, you will be building features, designing and implementing APIs, and improving the overall application architecture and health as we continue our rapid growth. You will lead technical discussions and help drive decisions within your team. You will write understandable, idiomatic, testable code with an eye towards maintainability. You will exhibit superb communication skills, leading through ego-free influence. Explaining complex technical concepts to designers, support, and other engineers is no problem for you.
+
+
+Job Description
+
+
+We are building a cutting-edge technology platform and are looking for a highly motivated Back End Software Engineer to join our team in Dallas, TX. The ideal candidate will have strong expertise in backend development, preferably with exposure to Financial Services, Real Assets (Oil & Gas, Real Estate, etc.) or Fintech.
+
+
+Expertise in one or more of the technologies of our tech stack—Ruby, Rails, Python, Java, Kafka, Elasticsearch, PostgreSQL, Redis, and Azure—is a must-have.
+
+
+Key Responsibilities:
+
+
+Participate in the design, development, and maintenance of backend services and APIs.
+Work collaboratively with senior engineers, front-end developers, and UX/UI designers to enhance user experiences.
+Assist in defining software requirements in collaboration with cross-functional teams.
+Contribute to code reviews and adhere to best practices, improving your idiomatic language proficiency and understanding of strong fundamentals.
+Assist in managing data using both SQL and NoSQL databases in cloud environments like Azure.
+Engage in continuous learning to stay updated with industry trends and technologies.
+
+
+
+
+Required qualifications :
+
+
+A Bachelor's or Master’s Degree in Computer Science, Software Engineering, or a related field is preferred, but significant relevant experience will also be considered.
+12+ years in Backend developments.
+
+ Skills:
+
+
+Languages: Proficiency in Java, Python, or Ruby.
+Frameworks/Libraries: Rails, Pandas, Polars.
+Web Development: Extensive experience in building and maintaining web applications.
+Distributed Systems: Strong understanding of distributed systems, with a focus on scalability and availability.
+Cloud & Docker: Hands-on experience with cloud platforms and Docker for containerization.
+Cloud Native: Expertise in developing cloud-native applications.
+DevOps & CI/CD: Experience with continuous integration and continuous delivery pipelines.
+Databases: Proficiency in working with Relational (PostgreSQL, SQL Server) and No-SQL (Redis, MongoDB, Elasticsearch) databases.
+Message Queues: Experience with message queues like Kafka.
+
+Qualities:
+
+
+Technical Aptitude: Foundational understanding of software architecture, data structures, and modern programming languages
+Analytical Skills: Ability to analyze problems and collaborate with the team to find effective solutions.
+Attention to Detail: Careful and considered approach to coding, testing, and debugging.
+Eager to Learn: Willingness to quickly learn new technologies and apply them in a fast-paced work environment.
+Teamwork: Good interpersonal skills and the ability to work well in a collaborative setting, including with remote team members.
+Ethical and Accountable: Takes responsibility for actions and maintains high ethical standards.
+
+Why work with Stronghold?
+
+
+At Stronghold, we strive to create a workplace that is not only rewarding but also satisfying. We believe our employees are the driving force behind our success, and we are committed to providing them with an environment where they can thrive and reach their full potential. When you choose to work with us, you'll be joining a team of highly talented professionals who are passionate about what they do and dedicated to bringing technology expertise to our domain. We value innovation, collaboration, and a commitment to excellence, and we provide our employees with the resources and support they need to succeed. If you're looking for a challenging and fulfilling career, we invite you to apply.
+
+
+Benefits
+
+
+Market-competitive compensation
+Fully paid benefits (Medical, Dental and Vision)
+Fully Funded HSA (with HDHP)
+401k + Match
+Company sponsored LTD, STD, life insurance and AD&D
+Generous PTO policy
+15 company recognized holidays
+Class A offices in prime locations
+Parental Leave
+
+Equal Opportunity Employer
+
+
+Stronghold Investment Management is an equal opportunity employer. We believe in creating a diverse and inclusive workforce, where individuals of all backgrounds, experiences, and perspectives can thrive. We are committed to providing equal employment opportunities to all employees and applicants for employment without regard to race, color, religion, sex, national origin, age, disability, sexual orientation, gender identity or expression, marital status, genetic information, or any other characteristic protected by applicable laws. We encourage applicants from underrepresented groups to apply and embrace the unique contributions they can bring to our organization.
