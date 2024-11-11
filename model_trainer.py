@@ -186,11 +186,11 @@ def evaluate(model, dataloader, device):
     return accuracy, f1, recall, mcc
 
 
-def main(model_name='models/best_model.pt', evaluate_only=False):
+def main(model_id, evaluate_only=False):
     os.makedirs('models', exist_ok=True)
-
+    model_name = f'models/best_model_{model_id}'
     # Initialize TensorBoard writer
-    writer = SummaryWriter('runs/experiment_{}'.format(time.strftime("%Y%m%d-%H%M%S")))
+    writer = SummaryWriter(f'runs/experiment_{model_id}')
 
     # Load and preprocess data
     df = load_and_preprocess_data('dataset/job_descriptions.csv', 'dataset/resume.pdf')
@@ -201,7 +201,14 @@ def main(model_name='models/best_model.pt', evaluate_only=False):
 
     # Setup device and model
     device = get_device()
-    model = build_model(device)
+    base_model_name = 'sentence-transformers/all-MiniLM-L6-v2'
+    model = build_model(device, model_name=base_model_name)
+
+    # Log the base model architecture
+    writer.add_text('Model/Base_Architecture', str(model.base_model))
+
+    # Log the full model architecture
+    writer.add_text('Model/Full_Architecture', str(model))
 
     # Prepare data loaders
     batch_size = 16
@@ -224,7 +231,8 @@ def main(model_name='models/best_model.pt', evaluate_only=False):
             'batch_size':    batch_size,
             'optimizer':     optimizer.__class__.__name__,
             'loss_function': criterion.__class__.__name__,
-            'model_name':    model_name
+            'model_name':    model_name,
+            'base_model':    base_model_name
         }
         writer.add_text('Hyperparameters', str(hyperparameters))
 
@@ -291,6 +299,6 @@ def main(model_name='models/best_model.pt', evaluate_only=False):
 
 if __name__ == "__main__":
     start_time = time.time()
-    main(model_name='models/best_model_2024_11_10_07.pt', evaluate_only=True)
+    main(time.strftime("%Y_%m_%d_%H_%M_%S"), evaluate_only=True)
     end_time = time.time()
     print(f"Total time: {end_time - start_time} seconds")

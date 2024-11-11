@@ -8,3 +8,4 @@ cal_avg_word_count.py
 *.ipynb
 __pycache__/
 runs/
+.venv
