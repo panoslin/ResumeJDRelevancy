@@ -198,28 +198,25 @@ def main(
     os.makedirs('models', exist_ok=True)
     model_name = f'models/best_model_{model_id}.pt'
 
+    # Load and preprocess data
+    df = load_and_preprocess_data('dataset/job_descriptions.csv', 'dataset/resume.pdf')
+    dataset_splits = create_dataset_splits(df)
+    print(f"Train size: {len(dataset_splits['train'])}")
+    print(f"Validation size: {len(dataset_splits['validation'])}")
+    print(f"Test size: {len(dataset_splits['test'])}")
+
+    # Setup device and model
+    device = get_device()
+    model = build_model(device, model_name=base_model_name)
+
+    train_dataloader, validation_dataloader, test_dataloader = get_dataloaders(
+        dataset_splits,
+        batch_size=batch_size
+    )
     # Initialize MLflow
-    mlflow.set_experiment('ResumeJobMatching')
-    with mlflow.start_run(run_name=f'Experiment_{model_id}'):
-
-        # Load and preprocess data
-        df = load_and_preprocess_data('dataset/job_descriptions.csv', 'dataset/resume.pdf')
-        dataset_splits = create_dataset_splits(df)
-        print(f"Train size: {len(dataset_splits['train'])}")
-        print(f"Validation size: {len(dataset_splits['validation'])}")
-        print(f"Test size: {len(dataset_splits['test'])}")
-
-        # Setup device and model
-        device = get_device()
-        model = build_model(device, model_name=base_model_name)
-
-        # Prepare data loaders
-        train_dataloader, validation_dataloader, test_dataloader = get_dataloaders(
-            dataset_splits,
-            batch_size=batch_size
-        )
-
-        if not evaluate_only:
+    if not evaluate_only:
+        mlflow.set_experiment('ResumeJobMatching')
+        with mlflow.start_run(run_name=f'Experiment_{model_id}'):
             # Define loss and optimizer
             criterion = nn.CrossEntropyLoss()
             optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
@@ -239,8 +236,7 @@ def main(
             }
             mlflow.log_params(hyperparameters)
 
-            # Optionally log model architecture as artifact
-            # Save model architecture to a file
+            # log model architecture as artifact
             model_arch_path = f'models/model_arch_{model_id}.txt'
             with open(model_arch_path, 'w') as f:
                 f.write(str(model))
@@ -289,14 +285,15 @@ def main(
                 }
                 torch.save(checkpoint, checkpoint_path)
 
-        # Load the best model
-        model.load_state_dict(torch.load(model_name, map_location=device, weights_only=False))
+    # Load the best model
+    model.load_state_dict(torch.load(model_name, map_location=device, weights_only=False))
 
-        # Evaluate on test set
-        test_accuracy, test_f1, test_recall, test_mcc = evaluate(model, test_dataloader, device)
-        print(f"Test Accuracy: {test_accuracy:.4f}, Test F1 Score: {test_f1:.4f}, "
-              f"Test Recall: {test_recall:.4f}, Test MCC: {test_mcc:.4f}")
+    # Evaluate on test set
+    test_accuracy, test_f1, test_recall, test_mcc = evaluate(model, test_dataloader, device)
+    print(f"Test Accuracy: {test_accuracy:.4f}, Test F1 Score: {test_f1:.4f}, "
+          f"Test Recall: {test_recall:.4f}, Test MCC: {test_mcc:.4f}")
 
+    if not evaluate_only:
         # Log test metrics to MLflow
         mlflow.log_metric('Test Accuracy', test_accuracy)
         mlflow.log_metric('Test F1 Score', test_f1)
@@ -311,43 +308,22 @@ def main(
 
 
 if __name__ == "__main__":
-    for base_model_name in [
-        'sentence-transformers/all-mpnet-base-v2',
-        'sentence-transformers/all-MiniLM-L6-v2',
-        'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',
-        'BAAI/bge-small-en-v1.5',
-        'sentence-transformers/all-MiniLM-L12-v2',
-        'sentence-transformers/paraphrase-MiniLM-L6-v2',
-        'sentence-transformers/all-distilroberta-v1',
-        'sentence-transformers/multi-qa-MiniLM-L6-cos-v1',
-        'BAAI/bge-m3',
-        'mixedbread-ai/mxbai-embed-large-v1'
-    ]:
-        try:
-            print('\n\n')
-            print('*'*100)
-            print(f"Train with base model {base_model_name}")
-            start_time = time.time()
-            main(
-                model_id=time.strftime("%Y_%m_%d_%H_%M"),
-                base_model_name=base_model_name,
-                batch_size=16,
-                learning_rate=1e-5,
-                num_epochs=20,
-                evaluate_only=False,
-                checkpointed=False
-            )
-            end_time = time.time()
-            print(f"Total time: {end_time - start_time} seconds")
-        except Exception as e:
-            print(f"Error with model {base_model_name}: {e}")
-
-    # main(
-    #     model_id='2024_11_11_00_42',
-    #     base_model_name='BAAI/bge-small-en-v1.5',
-    #     batch_size=16,
-    #     learning_rate=1e-5,
-    #     num_epochs=20,
-    #     evaluate_only=True,
-    #     checkpointed=False
-    # )
+    base_model_name = 'BAAI/bge-small-en-v1.5'
+    try:
+        print('\n\n')
+        print('*' * 100)
+        print(f"Train with base model {base_model_name}")
+        start_time = time.time()
+        main(
+            model_id=time.strftime("%Y_%m_%d_%H_%M"),
+            base_model_name=base_model_name,
+            batch_size=16,
+            learning_rate=1e-5,
+            num_epochs=20,
+            evaluate_only=True,
+            checkpointed=False
+        )
+        end_time = time.time()
+        print(f"Total time: {end_time - start_time} seconds")
+    except Exception as e:
+        print(f"Error with model {base_model_name}: {e}")
