@@ -9,5 +9,6 @@ cal_avg_word_count.py
 __pycache__/
 runs/
 .venv
+.venvapi
 migrate_tensorboard_to_mlflow.py
 mlruns

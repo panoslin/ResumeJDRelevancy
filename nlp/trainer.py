@@ -1,17 +1,14 @@
 import os
-import re
 import time
 
 import mlflow
 import pandas as pd
-import pdfplumber
 import torch
 import torch.nn as nn
 from datasets import (
     Dataset,
     DatasetDict,
 )
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -20,12 +17,12 @@ from sklearn.metrics import (
 )
 from torch.utils.data import DataLoader
 
-
-def extract_text_from_pdf(file_path):
-    """Extracts text from a PDF file."""
-    with pdfplumber.open(file_path) as pdf:
-        text = ''.join(page.extract_text() for page in pdf.pages)
-    return text
+from nlp.helper import (
+    get_device,
+    preprocess_text,
+    extract_text_from_pdf,
+    build_model,
+)
 
 
 def load_and_preprocess_data(job_desc_csv_path, resume_pdf_path):
@@ -39,15 +36,6 @@ def load_and_preprocess_data(job_desc_csv_path, resume_pdf_path):
     df['resume'] = df['resume'].apply(preprocess_text)
     df['job_description'] = df['job_description'].apply(preprocess_text)
     return df
-
-
-def preprocess_text(text):
-    """Preprocesses the input texts if necessary."""
-    # Remove extra whitespace
-    text = re.sub(r'\s+', ' ', text)
-    # Strip leading and trailing whitespace
-    text = text.strip()
-    return text
 
 
 def create_dataset_splits(df):
@@ -64,56 +52,6 @@ def create_dataset_splits(df):
         'test':       test_valid['test']
     })
     return dataset_splits
-
-
-def get_device():
-    """Returns the appropriate device (CPU, CUDA, or MPS)."""
-    if torch.backends.mps.is_available():
-        device = torch.device("mps")
-        print("Using MPS device")
-    elif torch.cuda.is_available():
-        device = torch.device("cuda")
-        print("Using CUDA device")
-    else:
-        device = torch.device("cpu")
-        print("Using CPU device")
-    return device
-
-
-class SBERTClassifier(nn.Module):
-    def __init__(self, base_model, num_classes=2):
-        super(SBERTClassifier, self).__init__()
-        self.base_model = base_model
-        self.classifier = nn.Linear(base_model.get_sentence_embedding_dimension(), num_classes)
-
-    def forward(self, input_pairs):
-        resumes, job_descriptions = input_pairs
-        # Tokenize the inputs
-        encoded_inputs = self.base_model.tokenize(resumes + job_descriptions)
-        # Move inputs to the device
-        device = next(self.base_model.parameters()).device
-        encoded_inputs = {key: val.to(device) for key, val in encoded_inputs.items()}
-        # Get embeddings
-        model_output = self.base_model(encoded_inputs)
-        embeddings = model_output['sentence_embedding']
-        # Split embeddings back into resumes and job descriptions
-        half = len(embeddings) // 2
-        resume_embeddings = embeddings[:half]
-        job_embeddings = embeddings[half:]
-        # Compute the absolute difference between embeddings
-        features = torch.abs(resume_embeddings - job_embeddings)
-        # Pass through classifier
-        logits = self.classifier(features)
-        return logits
-
-
-def build_model(device, model_name='sentence-transformers/all-MiniLM-L6-v2', num_classes=2):
-    """Builds and returns the model."""
-    base_model = SentenceTransformer(model_name)
-    base_model.to(device)
-    model = SBERTClassifier(base_model, num_classes)
-    model.to(device)
-    return model
 
 
 class ResumeJobDataset(torch.utils.data.Dataset):
@@ -195,11 +133,11 @@ def main(
         evaluate_only=False,
         checkpointed=True
 ):
-    os.makedirs('models', exist_ok=True)
+    os.makedirs('../models', exist_ok=True)
     model_name = f'models/best_model_{model_id}.pt'
 
     # Load and preprocess data
-    df = load_and_preprocess_data('dataset/job_descriptions.csv', 'dataset/resume.pdf')
+    df = load_and_preprocess_data('../dataset/job_descriptions.csv', 'dataset/resume.pdf')
     dataset_splits = create_dataset_splits(df)
     print(f"Train size: {len(dataset_splits['train'])}")
     print(f"Validation size: {len(dataset_splits['validation'])}")
@@ -315,7 +253,7 @@ if __name__ == "__main__":
         print(f"Train with base model {base_model_name}")
         start_time = time.time()
         main(
-            model_id=time.strftime("%Y_%m_%d_%H_%M"),
+            model_id='2024_11_11_00_42',
             base_model_name=base_model_name,
             batch_size=16,
             learning_rate=1e-5,

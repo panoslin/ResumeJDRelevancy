@@ -1,10 +1,10 @@
 import torch
 
-from model_trainer import (
-    build_model,
+from nlp.helper import (
     get_device,
     preprocess_text,
     extract_text_from_pdf,
+    build_model,
 )
 
 
@@ -18,16 +18,10 @@ def load_trained_model(model_path, device, base_model_name='sentence-transformer
     return model
 
 
-def predict(resume_text, job_description_text, model_path, device, base_model_name):
+def predict(resume_text, job_description_text, device, model):
     """Predicts the compatibility between a resume and a job description."""
     # Preprocess the texts
     resume_text, job_description_text = preprocess_text(resume_text), preprocess_text(job_description_text)
-    model = load_trained_model(model_path, device, base_model_name)
-    # Move model to device
-    model.to(device)
-
-    # Prepare the inputs
-    input_pairs = ([resume_text], [job_description_text])  # Wrap texts in lists
 
     # Tokenize the inputs using the model's base tokenizer
     encoded_inputs = model.base_model.tokenize([resume_text, job_description_text])
@@ -65,8 +59,12 @@ def main(
     device = get_device()
     resume_text = extract_text_from_pdf(resume_pdf_path)
 
+    model = load_trained_model(model_path, device, base_model_name)
+    # Move model to device
+    model.to(device)
+
     # Predict compatibility
-    predicted_class, confidence = predict(resume_text, job_description_text, model_path, device, base_model_name)
+    predicted_class, confidence = predict(resume_text, job_description_text, device, model)
 
     # Interpret the prediction
     if predicted_class == 1:
