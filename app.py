@@ -3,6 +3,7 @@ import uuid
 from typing import Optional
 
 import boto3
+import torch.nn as nn
 from fastapi import (
     FastAPI,
     HTTPException,
@@ -10,18 +11,15 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from model_evaluator import (
+from nlp.evaluator import (
     predict,
     load_trained_model,
 )
-from model_trainer import (
+from nlp.helper import (
     get_device,
     preprocess_text,
     extract_text_from_pdf,
 )
-
-s3 = boto3.client('s3')
-BUCKET_NAME = "resume-jd-relevancy-data"
 
 
 class PredictionRequest(BaseModel):
@@ -46,10 +44,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-model = None
+s3 = boto3.client('s3')
+BUCKET_NAME = "resume-jd-relevancy-data"
+
+model: Optional[nn.Module] = None
 device = None
 base_model_name = "BAAI/bge-small-en-v1.5"
-model_path = "models/best_model_2024_11_11_00_42.pt"
+model_path = "models/best_model.pt"
 
 
 @app.on_event("startup")
@@ -82,9 +83,8 @@ def get_prediction(request: PredictionRequest):
         predicted_class, confidence = predict(
             resume_text,
             job_description_text,
-            model_path,
             device,
-            base_model_name
+            model
         )
 
         if predicted_class == 1:
