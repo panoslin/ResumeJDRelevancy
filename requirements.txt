@@ -18,6 +18,8 @@ babel==2.16.0
 beautifulsoup4==4.12.3
 bleach==6.2.0
 blinker==1.9.0
+boto3==1.35.66
+botocore==1.35.66
 cachetools==5.5.0
 certifi==2024.8.30
 cffi==1.17.1
@@ -67,6 +69,7 @@ isoduration==20.11.0
 itsdangerous==2.2.0
 jedi==0.19.1
 Jinja2==3.1.4
+jmespath==1.0.1
 joblib==1.4.2
 json5==0.9.25
 jsonpointer==3.0.0
@@ -135,6 +138,7 @@ rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
 rpds-py==0.20.1
 rsa==4.9
+s3transfer==0.10.4
 safetensors==0.4.5
 scikit-learn==1.5.2
 scipy==1.14.1

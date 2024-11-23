@@ -1,4 +1,12 @@
-from fastapi import FastAPI
+import json
+import uuid
+from typing import Optional
+
+import boto3
+from fastapi import (
+    FastAPI,
+    HTTPException,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -11,6 +19,9 @@ from model_trainer import (
     preprocess_text,
     extract_text_from_pdf,
 )
+
+s3 = boto3.client('s3')
+BUCKET_NAME = "resume-jd-relevancy-data"
 
 
 class PredictionRequest(BaseModel):
@@ -29,7 +40,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://www.linkedin.com"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -93,3 +104,41 @@ def get_prediction(request: PredictionRequest):
             confidence=0.0,
             message=f"An error occurred during prediction: {str(e)}"
         )
+
+
+def upload_json_to_s3(file_content, file_name):
+    s3.put_object(
+        Bucket=BUCKET_NAME,
+        Key=f"raw/{file_name}",
+        Body=file_content,
+        ContentType='application/json'
+    )
+
+
+class RawTrainData(BaseModel):
+    resume_text: str
+    job_description: str
+    applied: bool
+    # website complete link
+    link: str
+    # website domain
+    source: str
+    # Google user id
+    user: Optional[str] = None
+    # job id | link
+    job_id: Optional[str] = None
+
+
+@app.post("/applications", response_model=dict, status_code=201)
+async def upload_resume(payload: RawTrainData):
+    try:
+        random_file_name = f"{uuid.uuid4().hex}.json"
+        data = payload.dict()
+        json_data = json.dumps(data)
+        upload_json_to_s3(json_data, random_file_name)
+        return {
+            "message":   "File uploaded successfully",
+            "file_name": random_file_name
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
